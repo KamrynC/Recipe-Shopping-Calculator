@@ -5,6 +5,27 @@ from collections import defaultdict
 import pandas as pd
 import os
 
+UNIT_MAP = {
+    "tsp.": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
+    "tbsp.": "tbsp", "tbs": "tbsp", "tb": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
+    "cups": "cup",
+    "ounce": "oz", "ounces": "oz", "oz.": "oz",
+    "lbs": "lb", "pound": "lb", "pounds": "lb", "lb.": "lb",
+    "gram": "g", "grams": "g", "g.": "g",
+    "kilogram": "kg", "kilograms": "kg", "kg.": "kg",
+    "milliliter": "ml", "milliliters": "ml", "ml.": "ml",
+    "liter": "l", "liters": "l", "l.": "l",
+    "inch": "in", "inches": "in", "in.": "in",
+    "cloves": "clove",
+    "pinches": "pinch", "a pinch": "pinch",
+    "dashes": "dash", "a dash": "dash",
+    "cans": "can",
+    "jars": "jar",
+    "package": "pkg", "packages": "pkg", "pkg.": "pkg",
+    "sheets": "sheet",
+    "sticks": "stick"
+}
+
 # TITLE
 st.markdown(
     "<h3 style='text-align: center;'>Tiny Chefs Shopping Calculator 🍎🧮</h3>",
@@ -46,7 +67,8 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
 
                     name = parts[0].get_text(strip=True).strip().lower() if len(parts) > 0 else ""
                     quantity_text = parts[1].get_text(strip=True) if len(parts) > 1 else ""
-                    unit = parts[2].get_text(strip=True) if len(parts) > 2 else ""
+                    unit = parts[2].get_text(strip=True).lower() if len(parts) > 2 else ""
+                    unit = UNIT_MAP.get(unit, unit)
 
                     if not name:
                         continue

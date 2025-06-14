@@ -35,7 +35,7 @@ st.markdown(
 # FILE SELECTION
 UPLOAD_FOLDER = "./html_files"
 available_files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith(".html")]
-selected_files = st.multiselect("Select the Recipe HTML files to include:", available_files)
+selected_files = st.multiselect("Select all applicable recipe day files to include in the list:", available_files)
 
 # SERVING SIZE
 default_servings = 10

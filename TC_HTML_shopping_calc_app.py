@@ -23,12 +23,12 @@ scale_factor = servings / default_servings
 
 # GENERATE SHOPPING LIST
 if st.button("🧾 Generate Shopping List", key="generate_list_button"):
-    ingredient_data = defaultdict(lambda: {"quantity": 0.0, "unit": "", "category": "", "raw": ""})
+    ingredient_data = defaultdict(lambda: {"category": "", "units": defaultdict(float), "raw": []})
+    current_category = ""
 
     for filename in selected_files:
         with open(os.path.join(UPLOAD_FOLDER, filename), "r", encoding="utf-8") as f:
             soup = BeautifulSoup(f, "html.parser")
-            current_category = ""
 
             for div in soup.find_all("div"):
                 div_class = div.get("class", [])
@@ -43,6 +43,7 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                     parts = div.find_all("div", class_="x242")
                     if not parts:
                         continue
+
                     name = parts[0].get_text(strip=True) if len(parts) > 0 else ""
                     quantity_text = parts[1].get_text(strip=True) if len(parts) > 1 else ""
                     unit = parts[2].get_text(strip=True) if len(parts) > 2 else ""
@@ -50,26 +51,32 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                     if not name:
                         continue
 
-                    key = (name, unit)
-
                     try:
                         quantity = float(quantity_text)
-                        ingredient_data[key]["quantity"] += quantity
-                        ingredient_data[key]["unit"] = unit
-                        ingredient_data[key]["category"] = current_category
-                        ingredient_data[key]["raw"] = ""
+                        if quantity == 0 and unit:
+                            quantity = 1.0
+                        elif quantity == 0:
+                            quantity = 0.0
+                        scaled_qty = quantity * scale_factor
+                        ingredient_data[name]["units"][unit] += scaled_qty
                     except ValueError:
-                        ingredient_data[key]["raw"] = f"{quantity_text} {unit}".strip()
-                        ingredient_data[key]["category"] = current_category
+                        raw = f"{quantity_text} {unit}".strip()
+                        ingredient_data[name]["raw"].append(raw)
 
+                    ingredient_data[name]["category"] = current_category
+
+    # Format for display
     final_data = []
-    for (name, unit), data in ingredient_data.items():
-        if data["raw"]:
-            quantity_display = data["raw"]
-        else:
-            scaled_qty = data["quantity"] * scale_factor
-            qty_str = "" if scaled_qty == 0 else f"{scaled_qty:.2f}".rstrip("0").rstrip(".")
-            quantity_display = f"{qty_str} {unit}".strip()
+    for name, data in ingredient_data.items():
+        combined_parts = []
+
+        for unit, total_qty in data["units"].items():
+            qty_str = "" if total_qty == 0 else f"{total_qty:.2f}".rstrip("0").rstrip(".")
+            combined_parts.append(f"{qty_str} {unit}".strip())
+
+        combined_parts.extend(data["raw"])  # Add any unparsed entries
+        quantity_display = " and ".join(combined_parts)
+
         final_data.append({
             "Category": data["category"],
             "Ingredient": name,
@@ -77,10 +84,14 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
         })
 
     df = pd.DataFrame(final_data)
-    st.session_state["shopping_df"] = df  # ✅ Store it for later
-    st.subheader(f"✅ Combined Ingredient List for {servings} Servings")
-    st.dataframe(df)
+    st.session_state["shopping_df"] = df
+    st.session_state["show_table"] = True  # ✅ Set the flag to display table
 
+if st.session_state.get("show_table") and "shopping_df" in st.session_state:
+    st.subheader(f"✅ Combined Ingredient List for {servings} Servings")
+    st.dataframe(st.session_state["shopping_df"])
+
+    
 # Optional input for PDF recipe title
 st.markdown("---")
 recipe_name = st.text_input("Add a recipe name (optional):", "")
@@ -107,9 +118,22 @@ if st.button("📄 Generate PDF", key="generate_pdf"):
                     self.cell(90, 8, ingredient, border=0)
                     self.cell(0, 8, quantity, ln=True, border=0)
 
-        grouped = defaultdict(list)
+        # Group and combine quantities by ingredient name and category for the PDF
+        pdf_grouped = defaultdict(lambda: defaultdict(list))
+
         for _, row in df.iterrows():
-            grouped[row["Category"]].append((row["Ingredient"], row["Quantity"]))
+            category = row["Category"]
+            name = row["Ingredient"]
+            quantity = row["Quantity"]
+            pdf_grouped[category][name].append(quantity)
+
+        # Format the final grouped list
+        grouped = defaultdict(list)
+        for category, ingredients in pdf_grouped.items():
+            for name, quantities in ingredients.items():
+                combined_quantity = " and ".join(quantities)
+                grouped[category].append((name, combined_quantity))
+
 
         pdf = ShoppingListPDF()
         pdf.title = recipe_name.strip() or "Tiny Chefs Shopping List"  # ✅ Set before add_page

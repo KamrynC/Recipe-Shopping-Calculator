@@ -44,7 +44,7 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                     if not parts:
                         continue
 
-                    name = parts[0].get_text(strip=True) if len(parts) > 0 else ""
+                    name = parts[0].get_text(strip=True).strip().lower() if len(parts) > 0 else ""
                     quantity_text = parts[1].get_text(strip=True) if len(parts) > 1 else ""
                     unit = parts[2].get_text(strip=True) if len(parts) > 2 else ""
 

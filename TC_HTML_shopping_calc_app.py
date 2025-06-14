@@ -116,7 +116,7 @@ if st.session_state.get("show_table") and "shopping_df" in st.session_state:
 
 # Optional input for PDF recipe title
 st.markdown("---")
-recipe_name = st.text_input("Add a recipe name (optional):", "")
+recipe_name = st.text_input("Add a shopping list title (optional):", "")
 
 if st.button("📄 Generate PDF", key="generate_pdf"):
     if "shopping_df" not in st.session_state:

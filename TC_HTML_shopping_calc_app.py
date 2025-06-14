@@ -91,7 +91,7 @@ if st.session_state.get("show_table") and "shopping_df" in st.session_state:
     st.subheader(f"✅ Combined Ingredient List for {servings} Servings")
     st.dataframe(st.session_state["shopping_df"])
 
-    
+
 # Optional input for PDF recipe title
 st.markdown("---")
 recipe_name = st.text_input("Add a recipe name (optional):", "")
@@ -114,6 +114,10 @@ if st.button("📄 Generate PDF", key="generate_pdf"):
                 self.cell(0, 8, category or "Uncategorized", ln=True, fill=True)
                 self.set_font("Arial", "", 11)
                 for ingredient, quantity in items:
+                    # Replace curly apostrophes and other smart punctuation
+                    ingredient = ingredient.replace("’", "'").replace("“", '"').replace("”", '"')
+                    quantity = quantity.replace("’", "'").replace("“", '"').replace("”", '"')
+
                     self.cell(10, 8, "[ ]", border=0)
                     self.cell(90, 8, ingredient, border=0)
                     self.cell(0, 8, quantity, ln=True, border=0)

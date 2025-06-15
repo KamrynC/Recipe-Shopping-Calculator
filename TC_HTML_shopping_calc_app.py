@@ -5,6 +5,7 @@ from collections import defaultdict
 import pandas as pd
 import os
 
+# === UNIT NORMALIZATION MAP ===
 UNIT_MAP = {
     "tsp.": "tsp", "teaspoon": "tsp", "teaspoons": "tsp",
     "tbsp.": "tbsp", "tbs": "tbsp", "tb": "tbsp", "tablespoon": "tbsp", "tablespoons": "tbsp",
@@ -25,6 +26,27 @@ UNIT_MAP = {
     "sheets": "sheet",
     "sticks": "stick"
 }
+
+# === UNIT ELEVATION LOGIC ===
+UNIT_CONVERSION = {
+    ("tsp", "tbsp"): 3,
+    ("tbsp", "cup"): 16,
+    ("oz", "cup"): 8
+}
+
+# Recursively convert and combine sub-units
+def elevate_units(unit_quantities):
+    changed = True
+    while changed:
+        changed = False
+        for (from_unit, to_unit), factor in UNIT_CONVERSION.items():
+            if from_unit in unit_quantities and unit_quantities[from_unit] >= factor:
+                to_convert = unit_quantities[from_unit] // factor
+                remainder = unit_quantities[from_unit] % factor
+                unit_quantities[to_unit] += to_convert
+                unit_quantities[from_unit] = remainder
+                changed = True
+    return unit_quantities
 
 # TITLE
 st.markdown(
@@ -92,11 +114,13 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
     for name, data in ingredient_data.items():
         combined_parts = []
 
-        for unit, total_qty in data["units"].items():
+        elevated = elevate_units(data["units"])
+
+        for unit, total_qty in elevated.items():
             qty_str = "" if total_qty == 0 else f"{total_qty:.2f}".rstrip("0").rstrip(".")
             combined_parts.append(f"{qty_str} {unit}".strip())
 
-        combined_parts.extend(data["raw"])  # Add any unparsed entries
+        combined_parts.extend(data["raw"])
         quantity_display = " and ".join(combined_parts)
 
         final_data.append({
@@ -107,12 +131,11 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
 
     df = pd.DataFrame(final_data)
     st.session_state["shopping_df"] = df
-    st.session_state["show_table"] = True  # ✅ Set the flag to display table
+    st.session_state["show_table"] = True
 
 if st.session_state.get("show_table") and "shopping_df" in st.session_state:
-    st.subheader(f"✅ Combined Ingredient List for {servings} Servings")
+    st.subheader(f"Combined Ingredient List for {servings} Servings")
     st.dataframe(st.session_state["shopping_df"])
-
 
 # Optional input for PDF recipe title
 st.markdown("---")
@@ -136,33 +159,27 @@ if st.button("📄 Generate PDF", key="generate_pdf"):
                 self.cell(0, 8, category or "Uncategorized", ln=True, fill=True)
                 self.set_font("Arial", "", 11)
                 for ingredient, quantity in items:
-                    # Replace curly apostrophes and other smart punctuation
                     ingredient = ingredient.replace("’", "'").replace("“", '"').replace("”", '"')
                     quantity = quantity.replace("’", "'").replace("“", '"').replace("”", '"')
-
                     self.cell(10, 8, "[ ]", border=0)
                     self.cell(90, 8, ingredient, border=0)
                     self.cell(0, 8, quantity, ln=True, border=0)
 
-        # Group and combine quantities by ingredient name and category for the PDF
         pdf_grouped = defaultdict(lambda: defaultdict(list))
-
         for _, row in df.iterrows():
             category = row["Category"]
             name = row["Ingredient"]
             quantity = row["Quantity"]
             pdf_grouped[category][name].append(quantity)
 
-        # Format the final grouped list
         grouped = defaultdict(list)
         for category, ingredients in pdf_grouped.items():
             for name, quantities in ingredients.items():
                 combined_quantity = " and ".join(quantities)
                 grouped[category].append((name, combined_quantity))
 
-
         pdf = ShoppingListPDF()
-        pdf.title = recipe_name.strip() or "Tiny Chefs Shopping List"  # ✅ Set before add_page
+        pdf.title = recipe_name.strip() or "Tiny Chefs Shopping List"
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 

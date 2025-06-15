@@ -57,7 +57,10 @@ st.markdown(
 # FILE SELECTION
 UPLOAD_FOLDER = "./html_files"
 available_files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith(".html")]
+st.markdown("<br>", unsafe_allow_html=True)
 selected_files = st.multiselect("Select all applicable recipe day files to include in the list:", available_files)
+st.markdown("<p style='font-size: 0.9rem; font-weight: bold;'>(Please note that these recipe files are for full-day camps)</p>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 # SERVING SIZE
 default_servings = 10

@@ -52,7 +52,7 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
 
             current_category = None
 
-            # Samsung Food Format (class-based divs)
+            # Samsung Food Format
             category_headers = soup.find_all("div", class_="x245")
             for header in category_headers:
                 current_category = header.get_text(strip=True).upper()
@@ -65,10 +65,8 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                             quantity_text = parts[1].get_text(strip=True)
                             unit = parts[2].get_text(strip=True).lower() if len(parts) > 2 else ""
                             unit = UNIT_MAP.get(unit, unit)
-
                             if not name:
                                 continue
-
                             try:
                                 quantity = float(quantity_text)
                                 if quantity == 0 and unit:
@@ -80,10 +78,9 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                             except ValueError:
                                 raw = f"{quantity_text} {unit}".strip()
                                 ingredient_data[name]["raw"].append(raw)
-
                             ingredient_data[name]["category"] = current_category or "Uncategorized"
 
-            # Enhanced Legacy Format: x241 contains x247 (category) + x242 wrapper with x243 ingredient rows
+            # Enhanced Legacy Format
             for x241 in soup.find_all("div", class_="x241"):
                 category_div = x241.find("div", class_="x247")
                 legacy_category = category_div.get_text(strip=True).upper() if category_div else None
@@ -97,10 +94,8 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                         quantity_text = cells[1].get_text(strip=True)
                         unit = cells[2].get_text(strip=True).lower() if len(cells) > 2 else ""
                         unit = UNIT_MAP.get(unit, unit)
-
                         if not name:
                             continue
-
                         try:
                             quantity = float(quantity_text)
                             if quantity == 0 and unit:
@@ -112,14 +107,12 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                         except ValueError:
                             raw = f"{quantity_text} {unit}".strip()
                             ingredient_data[name]["raw"].append(raw)
-
                         ingredient_data[name]["category"] = ingredient_data[name]["category"] or legacy_category or "Uncategorized"
 
-            # Legacy Format (old div nesting with x241 containing x242 directly)
+            # Legacy Format (old x241 with x242)
             legacy_category = None
             for cat_div in soup.find_all("div", class_="x247"):
                 legacy_category = cat_div.get_text(strip=True).upper()
-
             for container in soup.find_all("div", class_="x241"):
                 parts = container.find_all("div", class_="x242")
                 if len(parts) >= 2:
@@ -127,10 +120,8 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                     quantity_text = parts[1].get_text(strip=True)
                     unit = parts[2].get_text(strip=True).lower() if len(parts) > 2 else ""
                     unit = UNIT_MAP.get(unit, unit)
-
                     if not name:
                         continue
-
                     try:
                         quantity = float(quantity_text)
                         if quantity == 0 and unit:
@@ -142,33 +133,26 @@ if st.button("🧾 Generate Shopping List", key="generate_list_button"):
                     except ValueError:
                         raw = f"{quantity_text} {unit}".strip()
                         ingredient_data[name]["raw"].append(raw)
-
-                    # Only assign legacy category if current_category wasn't already set from Samsung format
                     ingredient_data[name]["category"] = ingredient_data[name]["category"] or legacy_category or "Uncategorized"
 
-    # === FORMAT FINAL DATA ===
+    # Final display logic
     final_data = []
     for name, data in ingredient_data.items():
         unit_dict = data["units"]
-
-        # Elevate units where appropriate
         for (from_unit, to_unit), factor in UNIT_CONVERSION.items():
             if from_unit in unit_dict and to_unit in unit_dict:
                 elev_qty = unit_dict[from_unit]
                 if elev_qty >= factor:
                     unit_dict[to_unit] += elev_qty / factor
                     unit_dict[from_unit] = elev_qty % factor
-
         combined_parts = []
         for unit, total_qty in unit_dict.items():
             total_qty, unit = convert_unit(total_qty, unit)
             qty_str = "" if total_qty == 0 else f"{total_qty:.2f}".rstrip("0").rstrip(".")
             if qty_str:
                 combined_parts.append(f"{qty_str} {unit}".strip())
-
         combined_parts.extend(data["raw"])
         quantity_display = " and ".join(combined_parts)
-
         final_data.append({
             "Category": data["category"],
             "Ingredient": name,
@@ -183,22 +167,19 @@ if st.session_state.get("show_table") and "shopping_df" in st.session_state:
     st.subheader(f"Combined Ingredient List for {servings} Servings")
     st.dataframe(st.session_state["shopping_df"])
 
-# === PDF EXPORT ===
+# PDF Export
 st.markdown("---")
 recipe_name = st.text_input("Add a shopping list title (optional):", "")
-
 if st.button("📄 Generate PDF", key="generate_pdf"):
     if "shopping_df" not in st.session_state:
         st.error("⚠️ Please generate the shopping list first.")
     else:
         df = st.session_state["shopping_df"]
-
         class ShoppingListPDF(FPDF):
             def header(self):
                 self.set_font("Arial", "B", 14)
                 self.cell(0, 10, self.title, ln=True, align="C")
                 self.ln(5)
-
             def category_section(self, category, items):
                 self.set_font("Arial", "B", 12)
                 self.set_fill_color(230, 230, 230)
@@ -214,7 +195,6 @@ if st.button("📄 Generate PDF", key="generate_pdf"):
         grouped = defaultdict(lambda: defaultdict(list))
         for _, row in df.iterrows():
             grouped[row["Category"]][row["Ingredient"]].append(row["Quantity"])
-
         merged = defaultdict(list)
         for category, ingredients in grouped.items():
             for ingredient, quantities in ingredients.items():
@@ -225,12 +205,9 @@ if st.button("📄 Generate PDF", key="generate_pdf"):
         pdf.title = recipe_name.strip() or "Tiny Chefs Shopping List"
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-
         for category in sorted(merged.keys()):
             pdf.category_section(category, merged[category])
-
         pdf_path = "tiny_chefs_shopping_list.pdf"
         pdf.output(pdf_path)
-
         with open(pdf_path, "rb") as f:
             st.download_button("📥 Download PDF", f, file_name=pdf_path, mime="application/pdf")

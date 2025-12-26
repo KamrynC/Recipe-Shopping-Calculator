@@ -28,8 +28,8 @@ def convert_unit(quantity, unit):
     return quantity, unit
 
 # === STREAMLIT SETUP ===
-st.set_page_config(page_title="Tiny Chefs Shopping Calculator", layout="centered")
-st.markdown("<h3 style='text-align: center;'>Tiny Chefs Shopping Calculator 🍎</h3>", unsafe_allow_html=True)
+st.set_page_config(page_title="Shopping Calculator", layout="centered")
+st.markdown("<h3 style='text-align: center;'>Shopping Calculator 🍎</h3>", unsafe_allow_html=True)
 
 UPLOAD_FOLDER = "./html_files"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
